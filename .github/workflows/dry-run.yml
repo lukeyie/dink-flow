@@ -1,41 +1,33 @@
 name: Test Run
 
 on:
-  workflow_dispatch: # 允許在 GitHub Actions 頁面手動點選執行
+  workflow_dispatch:
 
 jobs:
   test-job:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 檢出專案程式碼
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: 設定 Python 環境
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: 安裝 pipenv
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install pipenv
+          python -m pipenv install requests playwright
 
-      - name: 安裝專案依賴套件
+      - name: Install Playwright Browsers # 👈 新增這步安裝瀏覽器核心與系統依賴
         run: |
-          pipenv sync || pipenv install requests playwright
+          python -m pipenv run playwright install --with-deps chromium
 
-      - name: 寫入測試/認證設定檔
+      - name: Run DinkUp Bot Test
         env:
-          AUTH_JSON: ${{ secrets.AUTH_JSON_CONTENT }}
+          AUTH_JSON_CONTENT: ${{ secrets.AUTH_JSON_CONTENT }}
         run: |
-          if [ -n "$AUTH_JSON" ]; then
-            echo "$AUTH_JSON" > auth.json
-            echo "✅ 成功從 Secrets 寫入 auth.json"
-          else
-            echo "⚠️ 未檢測到 AUTH_JSON_CONTENT Secret，請確認 GitHub Secrets 設定"
-          fi
-
-      - name: 執行測試腳本
-        run: |
-          pipenv run python dinkup_bot.py
+          python -m pipenv run python dinkup_bot.py
