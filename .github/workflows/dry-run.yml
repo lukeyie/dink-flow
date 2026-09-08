@@ -38,4 +38,4 @@ jobs:
 
       - name: 執行測試腳本
         run: |
-          pipenv run python dinkup_api.py
+          pipenv run python dinkup_bot.py
