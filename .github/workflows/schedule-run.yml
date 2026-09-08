@@ -1,0 +1,38 @@
+name: Schedule Run
+
+on:
+  schedule:
+    # 台灣時間 13:18 -> UTC 時間 05:18 (格式: 分 時 日 月 星期)
+    - cron: '18 5 * * *'
+  workflow_dispatch: # 保留手動觸發按鈕方便隨時測試
+
+jobs:
+  scheduled-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pipenv
+          python -m pipenv install requests playwright
+
+      - name: Install Playwright Browsers
+        run: |
+          python -m pipenv run playwright install --with-deps chromium
+
+      - name: Run DinkUp Bot Schedule
+        env:
+          AUTH_JSON_CONTENT: ${{ secrets.AUTH_JSON_CONTENT }}
+          PYTHONUNBUFFERED: "1"
+          TZ: "Asia/Taipei"
+        run: |
+          python -m pipenv run python dinkup_bot.py
