@@ -29,5 +29,6 @@ jobs:
       - name: Run DinkUp Bot Test
         env:
           AUTH_JSON_CONTENT: ${{ secrets.AUTH_JSON_CONTENT }}
+          PYTHONUNBUFFERED: "1" # 👈 新增這行，讓 log 即時印出
         run: |
           python -m pipenv run python dinkup_bot.py
