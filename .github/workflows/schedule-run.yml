@@ -2,7 +2,6 @@ name: Schedule Run
 
 on:
   schedule:
-    # 台灣時間 13:18 -> UTC 時間 05:18 (格式: 分 時 日 月 星期)
     - cron: '45 3 * * *'
   workflow_dispatch: # 保留手動觸發按鈕方便隨時測試
 
