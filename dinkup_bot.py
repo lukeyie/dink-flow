@@ -1,4 +1,6 @@
+import os
 import time
+import json
 import requests
 from datetime import datetime, timedelta
 from playwright.sync_api import sync_playwright
@@ -32,7 +34,18 @@ def run():
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(storage_state="auth.json")
+
+        # 優先從 GitHub Secrets (環境變數) 讀取；若沒有則讀取本地 auth.json
+        auth_env = os.environ.get("AUTH_JSON_CONTENT")
+        if auth_env:
+            print("🔑 使用 GitHub Secrets 進行身分驗證")
+            auth_data = json.loads(auth_env)
+            context = browser.new_context(storage_state=auth_data)
+        elif os.path.exists("auth.json"):
+            print("🔑 使用本地 auth.json 進行身分驗證")
+            context = browser.new_context(storage_state="auth.json")
+        else:
+            raise FileNotFoundError("❌ 找不到認證資料！請設定 AUTH_JSON_CONTENT 或提供 auth.json 檔案。")
         
         # 2. 提取 Session Cookies 轉給 requests
         playwright_cookies = context.cookies()
