@@ -2,7 +2,8 @@ name: Schedule Run
 
 on:
   schedule:
-    - cron: '30 3 * * *'
+    # GitHub cron uses UTC. 03:00 UTC = 11:00 Asia/Taipei; leave a one-hour buffer.
+    - cron: '0 3 * * *'
   workflow_dispatch: # 保留手動觸發按鈕方便隨時測試
 
 jobs:
