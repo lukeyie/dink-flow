@@ -7,7 +7,7 @@ from playwright.sync_api import sync_playwright
 
 # API 的場地名稱可能是「松0高中」或「西松0中」，不一定包含完整地名。
 TARGET_LOCATION_KEYWORDS = ("松",)
-MAX_API_ATTEMPTS = 3
+MAX_EVENT_FETCH_ATTEMPTS = 3
 API_RETRY_DELAY_SECONDS = 1
 
 def wait_until_target_time(target_hour=12, target_minute=0, target_second=0):
@@ -70,19 +70,19 @@ def run():
 
         # 4. 極速輪詢撈取 Event ID 與 Division ID
         events_url = f"https://dinkup.club/api/events?club=xinyi&date={target_date_iso}"
-        event_id = None
-        division_id = None
+        target_registrations = []
 
         print("🔄 正在向 API 獲取開放場次...")
-        for attempt in range(1, MAX_API_ATTEMPTS + 1):
+        for attempt in range(1, MAX_EVENT_FETCH_ATTEMPTS + 1):
             try:
                 res = session.get(events_url, headers=headers, timeout=2)
-                if attempt == 1 or attempt % 5 == 0:
-                    print(f"🔎 API 第 {attempt}/{MAX_API_ATTEMPTS} 次：HTTP {res.status_code}")
+                if attempt == 1 or attempt == MAX_EVENT_FETCH_ATTEMPTS:
+                    print(f"🔎 活動清單 GET 第 {attempt}/{MAX_EVENT_FETCH_ATTEMPTS} 次：HTTP {res.status_code}")
                 if res.status_code == 200:
                     data = res.json()
                     events = data if isinstance(data, list) else data.get("events", [])
                     matching_events = 0
+                    target_registrations = []
                     
                     if len(events) > 0:
                         for ev in events:
@@ -94,20 +94,22 @@ def run():
                                 continue
 
                             matching_events += 1
-                            event_id = ev.get("id")
                             divisions = ev.get("divisions", [])
 
                             for div in divisions:
                                 # API 的 level 必須精確是 fun，確保一定報名歡樂分組。
                                 if str(div.get("level", "")).lower() == "fun":
-                                    division_id = div.get("id")
+                                    target_registrations.append({
+                                        "event_id": ev.get("id"),
+                                        "division_id": div.get("id"),
+                                        "title": event_title,
+                                        "location": event_location,
+                                    })
+                                    print(f"📍 找到目標場地：{event_title} | {event_location}")
                                     break
-                            if event_id and division_id:
-                                print(f"📍 找到目標場地：{event_title} | {event_location}")
-                                break
                         
-                        if event_id and division_id:
-                            print(f"🔥 [第 {attempt} 次嘗試] 成功獲取 ID！Event: {event_id} | Division (fun): {division_id}")
+                        if target_registrations:
+                            print(f"🔥 [第 {attempt} 次嘗試] 找到 {len(target_registrations)} 個符合的歡樂場次。")
                             break
                         elif attempt == 1 or attempt % 5 == 0:
                             print(f"ℹ️ 共 {len(events)} 個場次，符合松山/西松場地 {matching_events} 個，但尚未找到 fun 分組。")
@@ -116,31 +118,44 @@ def run():
             except Exception:
                 print(f"⚠️ API 第 {attempt} 次回應格式無法處理。")
 
-            if attempt < MAX_API_ATTEMPTS:
+            if attempt < MAX_EVENT_FETCH_ATTEMPTS:
                 time.sleep(API_RETRY_DELAY_SECONDS)
 
-        # 5. 發射 POST 報名封包 (+2 人)
-        if event_id and division_id:
-            register_url = f"https://dinkup.club/api/events/{event_id}/registrations?club=xinyi"
+        # 5. 逐一報名所有符合條件的歡樂場次 (+2 人)
+        if target_registrations:
             payload = {
-                "divisionId": division_id,
                 "displayName": "Luke",
                 "needsPaddle": False,
                 "count": 2
             }
 
-            print(f"⚡ 正在發送搶報 POST 請求：{register_url}")
-            reg_res = session.post(register_url, json=payload, headers=headers)
+            for index, registration in enumerate(target_registrations, start=1):
+                event_id = registration["event_id"]
+                division_id = registration["division_id"]
+                register_url = f"https://dinkup.club/api/events/{event_id}/registrations?club=xinyi"
+                registration_payload = {**payload, "divisionId": division_id}
 
-            print(f"📩 後端回應狀態碼：{reg_res.status_code}")
-            print(f"📩 回應詳細內容：{reg_res.text}")
+                print(
+                    f"⚡ 正在報名第 {index}/{len(target_registrations)} 場："
+                    f"{registration['title']} | {registration['location']}"
+                )
+                try:
+                    reg_res = session.post(
+                        register_url,
+                        json=registration_payload,
+                        headers=headers,
+                        timeout=5,
+                    )
+                    print(f"📩 回應狀態碼：{reg_res.status_code} | {reg_res.text}")
 
-            if reg_res.status_code in [200, 201]:
-                print("\n🎉🎉🎉 恭喜！API 報名成功！🎉🎉🎉")
-            else:
-                print(f"\n❌ 報名失敗，回應碼: {reg_res.status_code}")
+                    if reg_res.status_code in [200, 201]:
+                        print("✅ 報名成功")
+                    else:
+                        print(f"❌ 報名失敗，回應碼: {reg_res.status_code}")
+                except requests.RequestException as exc:
+                    print(f"❌ 報名請求失敗：{exc}")
         else:
-            print("\n❌ 未能在時間內獲取到開放的 Event ID 或 fun 分組 ID。")
+            print("\n❌ 未找到符合松山/西松場地的歡樂分組。")
 
         browser.close()
 
