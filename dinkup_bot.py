@@ -5,6 +5,9 @@ import requests
 from datetime import datetime, timedelta
 from playwright.sync_api import sync_playwright
 
+# API 的場地名稱可能是「松0高中」或「西松0中」，不一定包含完整地名。
+TARGET_LOCATION_KEYWORDS = ("松",)
+
 def wait_until_target_time(target_hour=12, target_minute=0, target_second=0):
     """毫秒級倒數等待至 12:00:00"""
     now = datetime.now()
@@ -78,21 +81,24 @@ def run():
                     
                     if len(events) > 0:
                         for ev in events:
-                            event_title = ev.get("title", "") or ev.get("location", "")
-                            
-                            # 優先鎖定包含「信義」或「週五」的場次（若都沒有則取第一個開放場次）
-                            if "信義" in event_title or "週五" in event_title or len(events) == 1:
-                                event_id = ev.get("id")
-                                divisions = ev.get("divisions", [])
-                                
-                                for div in divisions:
-                                    div_name = str(div.get("name", "") or div.get("level", "") or div.get("id", "")).lower()
-                                    # 匹配代碼 'fun' 或中文 '歡樂'
-                                    if "fun" in div_name or "歡樂" in div_name:
-                                        division_id = div.get("id")
-                                        break
-                                if event_id and division_id:
+                            event_title = str(ev.get("title", ""))
+                            event_location = str(ev.get("location", ""))
+
+                            # 只比對場地欄位，避免其他活動在標題備註「松山站旁」而誤命中。
+                            if not any(keyword in event_location for keyword in TARGET_LOCATION_KEYWORDS):
+                                continue
+
+                            event_id = ev.get("id")
+                            divisions = ev.get("divisions", [])
+
+                            for div in divisions:
+                                # API 的 level 必須精確是 fun，確保一定報名歡樂分組。
+                                if str(div.get("level", "")).lower() == "fun":
+                                    division_id = div.get("id")
                                     break
+                            if event_id and division_id:
+                                print(f"📍 找到目標場地：{event_title} | {event_location}")
+                                break
                         
                         if event_id and division_id:
                             print(f"🔥 [第 {attempt} 次嘗試] 成功獲取 ID！Event: {event_id} | Division (fun): {division_id}")

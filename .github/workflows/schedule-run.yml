@@ -2,7 +2,7 @@ name: Schedule Run
 
 on:
   schedule:
-    - cron: '45 3 * * *'
+    - cron: '30 3 * * *'
   workflow_dispatch: # 保留手動觸發按鈕方便隨時測試
 
 jobs:
