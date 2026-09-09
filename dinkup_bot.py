@@ -97,8 +97,11 @@ def run():
                             divisions = ev.get("divisions", [])
 
                             for div in divisions:
-                                # API 的 level 必須精確是 fun，確保一定報名歡樂分組。
-                                if str(div.get("level", "")).lower() == "fun":
+                                # 必須是有實際球場的 fun，避免選到前台不顯示的隱藏分組。
+                                if (
+                                    str(div.get("level", "")).lower() == "fun"
+                                    and int(div.get("courtCount", 0) or 0) > 0
+                                ):
                                     target_registrations.append({
                                         "event_id": ev.get("id"),
                                         "division_id": div.get("id"),
@@ -107,6 +110,11 @@ def run():
                                     })
                                     print(f"📍 找到目標場地：{event_title} | {event_location}")
                                     break
+                                elif str(div.get("level", "")).lower() == "fun":
+                                    print(
+                                        f"⏭️ 跳過前台未顯示的 fun：{event_title} | "
+                                        f"courtCount={div.get('courtCount', 0)}"
+                                    )
                         
                         if target_registrations:
                             print(f"🔥 [第 {attempt} 次嘗試] 找到 {len(target_registrations)} 個符合的歡樂場次。")
