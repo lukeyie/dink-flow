@@ -7,6 +7,8 @@ from playwright.sync_api import sync_playwright
 
 # API 的場地名稱可能是「松0高中」或「西松0中」，不一定包含完整地名。
 TARGET_LOCATION_KEYWORDS = ("松",)
+MAX_API_ATTEMPTS = 3
+API_RETRY_DELAY_SECONDS = 1
 
 def wait_until_target_time(target_hour=12, target_minute=0, target_second=0):
     """毫秒級倒數等待至 12:00:00"""
@@ -72,12 +74,15 @@ def run():
         division_id = None
 
         print("🔄 正在向 API 獲取開放場次...")
-        for attempt in range(1, 40):
+        for attempt in range(1, MAX_API_ATTEMPTS + 1):
             try:
                 res = session.get(events_url, headers=headers, timeout=2)
+                if attempt == 1 or attempt % 5 == 0:
+                    print(f"🔎 API 第 {attempt}/{MAX_API_ATTEMPTS} 次：HTTP {res.status_code}")
                 if res.status_code == 200:
                     data = res.json()
                     events = data if isinstance(data, list) else data.get("events", [])
+                    matching_events = 0
                     
                     if len(events) > 0:
                         for ev in events:
@@ -88,6 +93,7 @@ def run():
                             if not any(keyword in event_location for keyword in TARGET_LOCATION_KEYWORDS):
                                 continue
 
+                            matching_events += 1
                             event_id = ev.get("id")
                             divisions = ev.get("divisions", [])
 
@@ -103,10 +109,15 @@ def run():
                         if event_id and division_id:
                             print(f"🔥 [第 {attempt} 次嘗試] 成功獲取 ID！Event: {event_id} | Division (fun): {division_id}")
                             break
+                        elif attempt == 1 or attempt % 5 == 0:
+                            print(f"ℹ️ 共 {len(events)} 個場次，符合松山/西松場地 {matching_events} 個，但尚未找到 fun 分組。")
+            except requests.RequestException as exc:
+                print(f"⚠️ API 第 {attempt} 次連線失敗：{exc}")
             except Exception:
-                pass
+                print(f"⚠️ API 第 {attempt} 次回應格式無法處理。")
 
-            time.sleep(0.1)  # 每 0.1 秒極速重試一次
+            if attempt < MAX_API_ATTEMPTS:
+                time.sleep(API_RETRY_DELAY_SECONDS)
 
         # 5. 發射 POST 報名封包 (+2 人)
         if event_id and division_id:
