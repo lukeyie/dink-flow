@@ -2,13 +2,14 @@ name: Schedule Run
 
 on:
   schedule:
-    # GitHub cron uses UTC. 03:00 UTC = 11:00 Asia/Taipei; leave a one-hour buffer.
-    - cron: '0 3 * * *'
+    # GitHub cron uses UTC. 00:17 UTC = 08:17 Asia/Taipei; keep a large buffer before noon.
+    - cron: '17 0 * * *'
   workflow_dispatch: # 保留手動觸發按鈕方便隨時測試
 
 jobs:
   scheduled-job:
     runs-on: ubuntu-latest
+    timeout-minutes: 300
 
     steps:
       - name: Checkout repo
