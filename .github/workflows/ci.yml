@@ -25,11 +25,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install pipenv
-          python -m pipenv install requests
+          pipenv sync
 
       - name: Run unit tests
         run: |
-          python run_tests.py unit
+          pipenv run python run_tests.py unit
 
   # integration tests removed: repository will only run fast unit tests on PRs/push.
   # If you later want to re-enable integration tests, add a separate workflow
