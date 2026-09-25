@@ -6,12 +6,11 @@ from datetime import datetime, timedelta
 from threading import Event, Lock
 
 import requests
-from playwright.sync_api import sync_playwright
 
 # API 的場地名稱可能是「松0高中」或「西松0中」，不一定包含完整地名。
 TARGET_LOCATION_KEYWORDS = ("松",)
-DIVISION_PRIORITY = ("competitive", "fun")
-DIVISION_LABELS = {"competitive": "競技", "fun": "歡樂"}
+# 只選歡樂分組，避免報名競技
+DIVISION_PRIORITY = ("fun",)
 REGISTRATION_COUNT = 2
 MAX_EVENT_FETCH_ATTEMPTS = 3
 API_RETRY_DELAY_SECONDS = 1
@@ -169,7 +168,7 @@ def register_once(session, headers, registration, attempted, lock, target_date):
                 attempted.add((choice["event_id"], choice["division_id"]))
             print(f"↪️ [{target_date}] 競技明確拒絕，改報歡樂一次。")
         payload["divisionId"] = choice["division_id"]
-        division_label = DIVISION_LABELS[choice["level"]]
+        division_label = "歡樂" if choice.get("level") == "fun" else choice.get("level")
         print(f"⚡ [{target_date}] 報名{division_label}：{choice['title']} | {choice['location']}")
         try:
             response = session.post(url, json=dict(payload), headers=headers, timeout=5)
@@ -288,6 +287,8 @@ def poll_dates(target_dates, cookies, headers, wait_for_noon=False):
 
 def run():
     day_offsets = get_target_day_offsets()
+    from playwright.sync_api import sync_playwright
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         try:

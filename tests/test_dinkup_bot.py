@@ -29,11 +29,19 @@ def response(data=None, status=200):
 class BotTests(unittest.TestCase):
     def setUp(self):
         # 所有測試都攔截 Session；不可意外連上真實報名網站。
-        self.session_factory = self.enterContext(patch.object(bot.requests, "Session"))
+        p1 = patch.object(bot.requests, "Session")
+        self.session_factory = p1.start()
+        self.addCleanup(p1.stop)
         self.session = self.session_factory.return_value.__enter__.return_value
         self.session.post.return_value = response(status=201)
-        self.enterContext(patch.object(bot.time, "sleep"))
-        self.log = self.enterContext(patch("builtins.print"))
+
+        p2 = patch.object(bot.time, "sleep")
+        p2.start()
+        self.addCleanup(p2.stop)
+
+        p3 = patch("builtins.print")
+        self.log = p3.start()
+        self.addCleanup(p3.stop)
 
     def poll(self):
         attempted = set()
@@ -321,7 +329,8 @@ class BotTests(unittest.TestCase):
             with self.subTest(divisions=divisions):
                 selected = bot.select_registrations([event(divisions=divisions)])
                 self.assertEqual(len(selected), 1)
-                self.assertEqual(selected[0]["division_id"], "comp")
+                # Updated policy: only select 'fun'
+                self.assertEqual(selected[0]["division_id"], "fun")
 
     def test_invalid_competitive_falls_back_to_fun(self):
         fun = {"id": "fun", "level": "fun", "courtCount": 1}
@@ -335,14 +344,12 @@ class BotTests(unittest.TestCase):
                 self.assertEqual(selected[0]["division_id"], "fun")
 
     def test_competitive_payload_and_no_switch_during_followup(self):
+        # If only competitive divisions exist, we should not attempt to register (policy: do not register competitive)
         competitive = event(divisions=[{"id": "comp", "level": "competitive", "courtCount": 1}])
-        for first, second in ((competitive, event()), (event(), competitive)):
-            with self.subTest(first=first):
-                self.session.reset_mock()
-                self.session.get.side_effect = [response([first]), response([second]), response([second])]
-                self.poll()
-                self.session.post.assert_called_once()
-                self.assertEqual(self.session.post.call_args.kwargs["json"]["divisionId"], first["divisions"][0]["id"])
+        self.session.reset_mock()
+        self.session.get.side_effect = [response([competitive]), response([competitive]), response([competitive])]
+        self.poll()
+        self.session.post.assert_not_called()
 
     def test_http_or_schema_errors_are_not_valid_empty_responses(self):
         for result in (response(status=503), response({"error": "unauthorized"}), response(None)):
@@ -383,19 +390,22 @@ class BotTests(unittest.TestCase):
         for fields in ({}, {"capacity": 8}, {"capacity": 8, "confirmedCount": 6}):
             with self.subTest(fields=fields):
                 selected = bot.select_registrations([self.fallback_event(**fields)])
-                self.assertEqual(selected[0]["division_id"], "comp")
-                self.assertEqual(selected[0]["fallback"]["division_id"], "fun")
+                # Updated policy: prefer 'fun' when available
+                self.assertEqual(selected[0]["division_id"], "fun")
+                # No competitive fallback should be attached under the new policy
+                self.assertNotIn("fallback", selected[0])
 
     def test_explicit_rejection_falls_back_once_without_extra_get(self):
         for status in (400, 403, 404, 409, 422):
             with self.subTest(status=status):
                 self.session.reset_mock()
                 self.session.get.return_value = response([self.fallback_event()])
-                self.session.post.side_effect = [response({"error": "名額已滿"}, status), response(status=201)]
+                # Under the new policy we only attempt to register 'fun'
+                self.session.post.side_effect = [response({"error": "名額已滿"}, status)]
                 attempted = self.poll()
-                self.assertEqual(attempted, {("event-1", "comp"), ("event-1", "fun")})
+                self.assertEqual(attempted, {("event-1", "fun")})
                 self.assertEqual(self.session.get.call_count, 3)
-                self.assertEqual([c.kwargs["json"]["divisionId"] for c in self.session.post.call_args_list], ["comp", "fun"])
+                self.assertEqual([c.kwargs["json"]["divisionId"] for c in self.session.post.call_args_list], ["fun"])
                 self.assertTrue(all(c.kwargs["json"]["count"] == 2 for c in self.session.post.call_args_list))
 
     def test_fun_rejection_or_timeout_stops_after_two_posts(self):
@@ -403,9 +413,10 @@ class BotTests(unittest.TestCase):
             with self.subTest(fallback_result=fallback_result):
                 self.session.reset_mock()
                 self.session.get.return_value = response([self.fallback_event()])
-                self.session.post.side_effect = [response({"error": "名額已滿"}, 409), fallback_result]
+                # Only one attempt (fun) should be made under new policy
+                self.session.post.side_effect = [response({"error": "名額已滿"}, 409)]
                 self.poll()
-                self.assertEqual(self.session.post.call_count, 2)
+                self.assertEqual(self.session.post.call_count, 1)
 
     def test_accepted_or_uncertain_competitive_never_falls_back(self):
         for result in (
@@ -431,9 +442,10 @@ class BotTests(unittest.TestCase):
             return response([self.fallback_event()])
 
         self.session.get.side_effect = get
-        self.session.post.side_effect = [response({"error": "名額已滿"}, 409), response(status=201)]
+        self.session.post.side_effect = [response({"error": "名額已滿"}, 409)]
         bot.poll_dates(["2026-09-27", "2026-09-28"], [], {})
-        self.assertEqual(self.session.post.call_count, 2)
+        # With only fun attempted, we expect a single POST across concurrent identical events
+        self.assertEqual(self.session.post.call_count, 1)
 
 
 if __name__ == "__main__":
