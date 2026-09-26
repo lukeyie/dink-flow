@@ -92,7 +92,7 @@ class BotTests(unittest.TestCase):
         self.assertEqual(self.session.get.call_count, 3)
         self.assertEqual(self.session.post.call_count, 2)
         self.assertEqual(self.session.post.call_args.kwargs["json"], {
-            "displayName": "Victor", "needsPaddle": False, "count": 2, "divisionId": "fun-1",
+            "displayName": "Luke", "needsPaddle": False, "count": 2, "divisionId": "fun-1",
         })
 
     def test_get_timeout_and_bad_response_retry(self):

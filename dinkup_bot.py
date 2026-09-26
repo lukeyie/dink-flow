@@ -152,7 +152,7 @@ def register_once(session, headers, registration, attempted, lock, target_date):
         attempted.add(key)
 
     payload = {
-        "displayName": "Victor",
+        "displayName": "Luke",
         "needsPaddle": False,
         "count": REGISTRATION_COUNT,
         "divisionId": registration["division_id"],
