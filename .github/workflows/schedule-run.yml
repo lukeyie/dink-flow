@@ -3,7 +3,7 @@ name: Schedule Run
 on:
   schedule:
     # GitHub cron uses UTC. 22:05 UTC = 06:05 Asia/Taipei; the bot waits until noon.
-    - cron: '5 22 * * *'
+    # - cron: '5 22 * * *'  # 暫停自動報名；恢復時移除前面的 #
   workflow_dispatch: # 保留手動觸發按鈕方便隨時測試
 
 jobs:
