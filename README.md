@@ -57,6 +57,17 @@ This repository is a Python 3.11 DinkUp registration bot with two root-level scr
 
 There are currently no dedicated source-package, test, or asset directories.
 
+## Automatic Schedule
+
+The scheduled workflow checks once a day using the Asia/Taipei date. Set the
+`SCHEDULE_DAYS` Actions repository variable under **Settings > Secrets and
+variables > Actions > Variables** to enable selected days. Use comma-separated
+weekday names (`MON` through `SUN`) or month days (`1` through `31`); matching
+any listed value runs the bot. For example, `MON,WED,FRI` runs on those
+weekdays, while `1,15` runs on the first and fifteenth of each month. To run
+once on a specific date, use `YYYY-MM-DD`, such as `2026-10-05`. Leave the
+variable empty to disable automatic runs. Manual workflow dispatches always run.
+
 ## Coding Style
 - Language: Python 3.11
 - Indentation: 4 spaces
