@@ -3,77 +3,11 @@ name: Schedule Run
 on:
   schedule:
     # GitHub cron uses UTC. 22:05 UTC = 06:05 Asia/Taipei; the bot waits until noon.
-    - cron: '5 22 * * *'
+    # - cron: '5 22 * * *'
   workflow_dispatch:
 
 jobs:
-  schedule-gate:
-    runs-on: ubuntu-latest
-    outputs:
-      should-run: ${{ steps.date-check.outputs.should-run }}
-    steps:
-      - name: Check selected execution day
-        id: date-check
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          SCHEDULE_DAYS: ${{ vars.SCHEDULE_DAYS }}
-        run: |
-          python3 - <<'PY'
-          import os
-          from datetime import date, datetime
-          from zoneinfo import ZoneInfo
-
-          should_run = os.environ["EVENT_NAME"] != "schedule"
-          if not should_run:
-              weekdays = {
-                  "MON": 0,
-                  "TUE": 1,
-                  "WED": 2,
-                  "THU": 3,
-                  "FRI": 4,
-                  "SAT": 5,
-                  "SUN": 6,
-              }
-              selected_days = {
-                  day.strip().upper()
-                  for day in os.environ.get("SCHEDULE_DAYS", "").split(",")
-                  if day.strip()
-              }
-              today = datetime.now(ZoneInfo("Asia/Taipei"))
-              for day in selected_days:
-                  if day in weekdays:
-                      should_run = today.weekday() == weekdays[day]
-                  elif "-" in day:
-                      try:
-                          selected_date = date.fromisoformat(day)
-                      except ValueError as error:
-                          raise ValueError(
-                              f"Invalid SCHEDULE_DAYS date: {day}. "
-                              "Use YYYY-MM-DD format."
-                          ) from error
-                      if selected_date.isoformat() != day:
-                          raise ValueError(
-                              f"Invalid SCHEDULE_DAYS date: {day}. "
-                              "Use YYYY-MM-DD format."
-                          )
-                      should_run = today.date() == selected_date
-                  elif day.isdecimal() and 1 <= int(day) <= 31:
-                      should_run = today.day == int(day)
-                  else:
-                      raise ValueError(
-                          f"Invalid SCHEDULE_DAYS value: {day}. "
-                          "Use weekday names MON-SUN or month days 1-31."
-                      )
-                  if should_run:
-                      break
-
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"should-run={str(should_run).lower()}\n")
-          PY
-
   scheduled-job:
-    needs: schedule-gate
-    if: needs.schedule-gate.outputs.should-run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 360
 

@@ -52,21 +52,24 @@ This repository is a Python 3.11 DinkUp registration bot with two root-level scr
 
 - `dinkup_bot.py` loads authentication, waits until noon, fetches events six days ahead, filters locations and available `fun` divisions, and submits registrations.
 - `save_session.py` opens an interactive Chrome session and saves login state to `auth.json`.
-- `.github/workflows/schedule-run.yml` schedules execution; `dry-run.yml` provides manual execution.
+- `.github/workflows/schedule-run.yml` runs daily; `schedule-selected-days.yml` adds selected-day runs; `dry-run.yml` provides manual execution.
 - `Pipfile` and `Pipfile.lock` define and lock Requests and Playwright dependencies.
 
 There are currently no dedicated source-package, test, or asset directories.
 
 ## Automatic Schedule
 
-The scheduled workflow checks once a day using the Asia/Taipei date. Set the
-`SCHEDULE_DAYS` Actions repository variable under **Settings > Secrets and
-variables > Actions > Variables** to enable selected days. Use comma-separated
-weekday names (`MON` through `SUN`) or month days (`1` through `31`); matching
-any listed value runs the bot. For example, `MON,WED,FRI` runs on those
-weekdays, while `1,15` runs on the first and fifteenth of each month. To run
-once on a specific date, use `YYYY-MM-DD`, such as `2026-10-05`. Leave the
-variable empty to disable automatic runs. Manual workflow dispatches always run.
+The original `schedule-run.yml` continues to run the bot daily. The separate
+`schedule-selected-days.yml` checks once a day using the Asia/Taipei date and
+adds another bot run when its selection matches. Set the `SCHEDULE_DAYS` Actions
+repository variable under **Settings > Secrets and variables > Actions >
+Variables**. Use comma-separated weekday names (`MON` through `SUN`) or month
+days (`1` through `31`); matching any listed value runs the bot. For example,
+`MON,WED,FRI` runs on those weekdays, while `1,15` runs on the first and
+fifteenth of each month. To add a one-time run, use `YYYY-MM-DD`, such as
+`2026-10-05`. Leaving the variable empty disables only the selected-day runs;
+the daily workflow remains active. On matching days both workflows run the bot.
+Manually dispatching the selected-day workflow always runs the bot.
 
 ## Coding Style
 - Language: Python 3.11
