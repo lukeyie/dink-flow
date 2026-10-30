@@ -311,7 +311,8 @@ def run():
             }
             target_dates = get_target_dates(day_offsets)
             print(f"🎯 目標預約日期：{', '.join(target_dates)}")
-            poll_dates(target_dates, cookies, headers, wait_for_noon=True)
+            wait_for_noon = os.environ.get("RUN_IMMEDIATELY") != "1"
+            poll_dates(target_dates, cookies, headers, wait_for_noon=wait_for_noon)
         finally:
             browser.close()
 

@@ -27,6 +27,24 @@ pipenv run python save_session.py  # opens browser to save auth.json
 pipenv run python dinkup_bot.py
 ```
 
+On Windows, save `auth.json` first, then double-click `run_bot.bat`. It requires
+Python 3.11 and automatically installs Pipenv if needed, syncs dependencies,
+checks the Playwright Chromium browser, and starts the bot. The window stays
+open if setup or execution fails.
+
+To verify the saved login without submitting a registration, run
+`pipenv run python check_session.py`. It opens DinkUp headlessly and checks
+whether the page shows the signed-in profile button.
+
+To run the test suite on Windows, double-click `run_tests.bat`. It installs
+Pipenv if needed, syncs dependencies, and runs the mocked tests without
+submitting registrations.
+
+For an immediate live registration test, double-click `run_live_test.bat`. It
+does not wait until noon or ask for confirmation; it submits real registrations
+for 2 people to all matching Songshan fun events 5 and 6 days from today.
+Use `run_tests.bat` for tests that do not submit registrations.
+
 Run tests:
 
 ```bash
